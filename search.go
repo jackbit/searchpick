@@ -14,12 +14,13 @@ import (
 type SearchOption struct {
   Term     string
   Fields   []string
+  Select   []string
   Operator string
-  Page     int16
-  PerPage  int16
-  Limit    int16
-  Padding  int16
-  Offset   int16
+  Page     int64
+  PerPage  int64
+  Limit    int64
+  Padding  int64
+  Offset   int64
   Order    map[string]interface{}
   Where    map[string]interface{}
   Similar  bool

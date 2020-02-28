@@ -4,6 +4,7 @@ import (
   "context"
   "encoding/json"
   "log"
+  "fmt"
 )
 
 func (s *Searchpick) BuildSearchData(id string, data interface{}) *SearchData {
@@ -73,7 +74,7 @@ func (s *Searchpick) Reindex() error {
   _, err := s.Client.Index().
     Index(s.GetIndexName()).
     Type(s.IndexType).
-    Id(s.SearchData.Id).
+    Id(fmt.Sprintf("%v", s.SearchData.Id)).
     BodyJson(s.SearchData.BodyJson).
     Do(ctx)
 
@@ -84,7 +85,7 @@ func (s *Searchpick) Reindex() error {
   return err
 }
 
-func (s *Searchpick) IndexId(id string) error {
+func (s *Searchpick) IndexExists(id interface{}) error {
   s.SetupIndex()
   if s.Error != nil { return s.Error }
 
@@ -92,7 +93,7 @@ func (s *Searchpick) IndexId(id string) error {
   _, err := s.Client.Get().
     Index(s.GetIndexName()).
     Type(s.IndexType).
-    Id(id).
+    Id(fmt.Sprintf("%v", id)).
     Do(ctx)
 
   if err != nil {
@@ -102,25 +103,7 @@ func (s *Searchpick) IndexId(id string) error {
   return err
 }
 
-func (s *Searchpick) IndexExists() error {
-  s.SetupIndex()
-  if s.Error != nil { return s.Error }
-
-  ctx := context.Background()
-  _, err := s.Client.Get().
-    Index(s.GetIndexName()).
-    Type(s.IndexType).
-    Id(s.SearchData.Id).
-    Do(ctx)
-
-  if err != nil {
-    log.Println(err)
-  }
-
-  return err
-}
-
-func (s *Searchpick) IndexDelete() error {
+func (s *Searchpick) IndexDelete(id interface{}) error {
   s.SetupIndex()
   if s.Error != nil { return s.Error }
 
@@ -128,7 +111,7 @@ func (s *Searchpick) IndexDelete() error {
   _, err := s.Client.Delete().
     Index(s.GetIndexName()).
     Type(s.IndexType).
-    Id(s.SearchData.Id).
+    Id(fmt.Sprintf("%v", id)).
     Do(ctx)
 
   if err != nil {
