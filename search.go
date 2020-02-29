@@ -8,6 +8,10 @@ import (
   "strings"
   "reflect"
   "fmt"
+  "strings"
+  "github.com/thoas/go-funk"
+  "github.com/imdario/mergo"
+  "regexp"
   // "context"
 )
 
@@ -15,6 +19,7 @@ type SearchOption struct {
   Term     string
   Fields   []string
   Select   []string
+  Exclude  []interface{}
   Operator string
   Page     int64
   PerPage  int64
@@ -25,12 +30,18 @@ type SearchOption struct {
   Where    map[string]interface{}
   Similar  bool
   Match    string
+  Body     map[string]interface{}
+  BodyJson string
+  Misspellings map[string]interface{}
 }
 
 
 type BoostField struct {
   Fields []string
   Boosts map[string]interface{}
+  MustNots []interface{}
+  Shoulds  []interface{}
+  Queries  []interface{}
 }
 
 type SearchQuery struct {
@@ -77,13 +88,28 @@ func (sf BoostField) String() string {
   return string(j)
 }
 
+
+func (sOption *SearchOption) SetExclude(field string, analyzer string) []map[string]interface{} {
+  excludes := []map[string]interface{}{}
+  for _, phrase := range sOption.Exclude {
+    excludes = append(excludes, map[string]interface{}{
+      "multi_match": map[string]interface{}{
+        "fields": []string{ field },
+        "query": phrase,
+        "analyzer": analyzer,
+        "type": "phrase",
+      }
+    })
+  }
+}
+
 func (sOption *SearchOption) SetFields() *BoostField {
   boostType := sOption.Match
   fields := []string{}
   boosts := map[string]interface{}{}
 
   if sOption.Match == "word" { boostType = "analyzed" }
-
+  
   for i := range sOption.Fields {
     field := sOption.Fields[i]
     boost := reflect.ValueOf(strings.Split(field, "^"))
@@ -183,28 +209,54 @@ func (fr SearchFilter) String() string {
   return string(j)
 }
 
+func (s *Searchpick) BaseField(str string) string {
+  exp := "\\.(analyzed|word_start|word_middle|word_end|text_start|text_middle|text_end|exact)$"
+  r, _ := regexp.Compile(exp)
+  return r.ReplaceAllString(str, "")
+}
+
 func (s *Searchpick) Search(sOption *SearchOption) SearchResult {
   sQuery := &SearchQuery{ Query: map[string]interface{}{} } 
 
   if sOption.Term == "" { sOption.Term = "*" }
   if sOption.Match == "" { sOption.Match = "word" }
   sOption.SetPagination()
-  
   boosField := sOption.SetFields()
+
+  isLoad = true
+  operator := sOption.Operator
+  if operator == "" { operator = "and" }
+  isAll = false
+  if sOption.Term == "*" {isAll = true}
   
-  if sOption.Similar {
-    sQuery.SetSimilar(sOption.Term, boosField)
+  var payload map[string]interface{}
+
+  if !reflect.ValueOf(sOption.Body).IsZero() {
+    payload = sOption.Body
+  } else if sOption.BodyJson != "" {
+    _ = json.Unmarshal([]byte(sOption.BodyJson), &payload)
   } else {
-    sQuery.Query["match_all"] = map[string]interface{}{}
+    mustNot := []interface{}{}
+    should := []interface{}{}
+
+    if sOption.Similar {
+      sQuery.SetSimilar(sOption.Term, boosField)
+    } else if isAll && !reflect.ValueOf(sOption.Exclude).IsZero() && len(sOption.Exclude) > 0 {
+      sQuery.Query["match_all"] = map[string]interface{}{}
+    } else {
+
+      sOption.ExploreFields(boosField)
+
+      sFilter := &SearchFilter{ Filters: []interface{}{}, Where: sOption.Where }
+      sFilter.SetFilters()
+      
+      // log.Println(sQuery.String())
+      // log.Println(boosField.String())
+      // log.Println(s.String())
+      j, _ := json.Marshal(sFilter.Filters)
+    }
   }
 
-  sFilter := &SearchFilter{ Filters: []interface{}{}, Where: sOption.Where }
-  sFilter.SetFilters()
-  
-  // log.Println(sQuery.String())
-  // log.Println(boosField.String())
-  // log.Println(s.String())
-  j, _ := json.Marshal(sFilter.Filters)
   log.Println(string(j))
   esResult := SearchResult{}
   return esResult

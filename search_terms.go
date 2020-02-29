@@ -56,6 +56,7 @@ func (sFilter *SearchFilter) QueryArray(field string, cols []interface{}) *Searc
   return fr
 }
 
+//TODO : Add Terms for Regex : https://github.com/ankane/searchkick/blob/master/lib/searchkick/query.rb#L1023
 func (sFilter *SearchFilter) TermFilters() *SearchFilter {
   newQuery := map[string]interface{}{}
 
@@ -74,10 +75,8 @@ func (sFilter *SearchFilter) TermFilters() *SearchFilter {
       }
 
       sFilter.Where = frArray.TermFilterArray( field ).Where
-
     } else if queriesType == nil {
       sFilter.Where = sFilter.QueryNil(field).Where
-
     } else {
       newQuery[field] = queries
       sFilter.Where = map[string]interface{}{
