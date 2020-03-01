@@ -4,6 +4,7 @@ import (
   "log"
   "strconv"
   "reflect"
+  "github.com/thoas/go-funk"
 )
 
 type Misspellings struct {

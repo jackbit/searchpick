@@ -4,23 +4,24 @@ import (
   "log"
   "strconv"
   "reflect"
+  "github.com/thoas/go-funk"
 )
 
-func (sOption *SearchOption) ExploreFields(boosField *BoostField) {
+func (sOption *SearchOption) ExploreFields(boostField *BoostField) {
   mustNot := []interface{}{}
   should := []interface{}{}
   queries := []interface{}{}
-  misspellings := sOption.SetMisspellings(boosField.Fields)
+  misspellings := sOption.SetMisspellings(boostField.Fields)
 
-  for _, f := range boosField.Fields {
+  for _, f := range boostField.Fields {
     field := f.(string)
     queriesToAdd := []interface{}
     qS := []interface{}
     
     factor := 1
 
-    if !reflect.ValueOf(boosField.Boosts[field]).IsZero() {
-      factor := boosField.Boosts[field].(float64)
+    if !reflect.ValueOf(boostField.Boosts[field]).IsZero() {
+      factor := boostField.Boosts[field].(float64)
     }
 
     sharedOptions :- map[string]interface{}{
@@ -151,7 +152,7 @@ func (sOption *SearchOption) ExploreFields(boosField *BoostField) {
     }
   }
 
-  boosField.MustNots = mustNot
-  boosField.Shoulds = should
-  boosField.Queries = queries
+  boostField.MustNots = mustNot
+  boostField.Shoulds = should
+  boostField.Queries = queries
 }

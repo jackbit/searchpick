@@ -10,53 +10,6 @@ import (
   es_config "gopkg.in/olivere/elastic.v6/config"
 )
 
-type SearchData struct {
-  Id string
-  BodyJson string
-}
-
-type Searchpick struct {
-  Name string
-  BatchSize float64
-  Callbacks string
-  CaseSensitive bool
-  Conversions []string
-  DefaultFields []string
-  Filterable []string
-  GeoShape []string
-  Highlight []string
-  IndexName string
-  IndexType string
-  IndexPrefix string
-  Inheritance bool
-  IgnoreAbove float64
-  Locations []string
-  Mappings map[string]interface{}
-  Match string
-  MergeMappings bool
-  Routing string // "true", "false", default: ""
-  Searchable []string
-  Settings map[string]interface{}
-  Similarity string
-  SpecialCharacters string // "true", "false", default: ""
-  Stem string // "true", "false", default: ""
-  StemConversions bool
-  Suggest []string
-  Synonyms []interface{}
-  TextEnd []string
-  TextMiddle []string
-  TextStart []string
-  Word []string
-  WordEnd []string
-  WordMiddle []string
-  WordStart []string
-  FinalMappings map[string]interface{}
-  Error error
-  Client *elastic.Client
-  SearchData *SearchData
-  Version string
-}
-
 var ES *elastic.Client
 
 func (s *Searchpick) CheckIndexType() *Searchpick {
