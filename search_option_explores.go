@@ -4,7 +4,6 @@ import (
   "log"
   "strconv"
   "reflect"
-  "github.com/thoas/go-funk"
 )
 
 func (sOption *SearchOption) ExploreFields(boostField *BoostField) {
@@ -48,7 +47,7 @@ func (sOption *SearchOption) ExploreFields(boostField *BoostField) {
 
     fieldMisspellings := false
 
-    if misspellings.IsMisspellings && funk.ContainsString(misspellings.Fields, s.BaseField(field)) {
+    if misspellings.IsMisspellings && SliceContainsString(misspellings.Fields, s.BaseField(field)) {
       fieldMisspellings = true
     }
 

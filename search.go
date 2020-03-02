@@ -130,7 +130,13 @@ func (s *Searchpick) Search(sOption *SearchOption) SearchResult {
     // move to post_filters as aggs demand
 
     sFilter := &SearchFilter{ Filters: []interface{}{}, Where: sOption.Where }
-    sFilter.SetFilters().SetAggregation() //including post-filters
+    sFilter.SetFilters().
+      SetAggregation(sOption). //including post-filters
+      FilterBoostMultiply(sOption).
+      SetBoostWhere(sOption).
+      SetBoostByDistance(sOption).
+      SetBoostByRecency(sOption).
+
     
     // log.Println(sQuery.String())
     // log.Println(boostField.String())

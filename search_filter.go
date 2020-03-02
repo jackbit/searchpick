@@ -3,46 +3,15 @@ package searchpick
 import (
   "encoding/json"
   "reflect"
-  "github.com/imdario/mergo"
-  "github.com/thoas/go-funk"
+  "strings"
+  "log"
+  "time"
 )
 
 
 func (fr SearchFilter) String() string {
   j, _ := json.Marshal(fr)
   return string(j)
-}
-
-func (sFilter *SearchFilter) IsSlice(i interface{}) bool {
-  return reflect.TypeOf(i).Kind() == reflect.Slice
-}
-
-func (sFilter *SearchFilter) IsMap(i interface{}) bool {
-  return reflect.TypeOf(i).Kind() == reflect.Map
-}
-
-func (sFilter *SearchFilter) IsString(i interface{}) bool {
-  return reflect.TypeOf(i).Kind() == reflect.String
-}
-
-func (sFilter *SearchFilter) IsInt(i interface{}) bool {
-  return reflect.TypeOf(i).Kind() == reflect.Int
-}
-
-func (sFilter *SearchFilter) IsFloat(i interface{}) bool {
-  return reflect.TypeOf(i).Kind() == reflect.Float64
-}
-
-func (sFilter *SearchFilter) IsEmpty(i interface{}) bool {
-  return reflect.ValueOf(i).IsZero()
-}
-
-func (sFilter *SearchFilter) IsMapExist(i interface{}) bool {
-  return sFilter.IsMap(i) && !sFilter.IsEmpty(i)
-}
-
-func (sFilter *SearchFilter) IsSliceExist(i interface{}) bool {
-  return sFilter.IsSlice(i) && len(i) > 0
 }
 
 func (sFilter *SearchFilter) ToFiltersFormat(i interface{}) []interface{} {
@@ -111,10 +80,10 @@ func (sFilter *SearchFilter) SetFilters() *SearchFilter {
 
 func (sFilter *SearchFilter) MetricField(aggOption map[string]interface{}) string {
   aggsMetrick := []string{"avg", "cardinality", "max", "min", "sum"}
-  optionKeys := funk.Keys(aggOption)
+  optionKeys := SliceKeys(aggOption)
   matchKey := ""
   for _, k := range optionKeys {
-    if funk.ContainsString(aggsMetrick, k.(string)) {
+    if SliceContainsString(aggsMetrick, k.(string)) {
       matchKey = k.(string)
       break
     }
@@ -125,7 +94,7 @@ func (sFilter *SearchFilter) MetricField(aggOption map[string]interface{}) strin
 func (sFilter *SearchFilter) SetAggregations(sOption *SearchOption) *SearchFilter {
   fieldPayload := map[string]interface{}{}
   
-  if reflect.ValueOf(sOption.Aggs).IsZero() { return sFilter }
+  if IsEmpty(sOption.Aggs) { return sFilter }
   if reflect.TypeOf(sOption.Aggs).Kind() == reflect.Slice && len(sOption.Aggs) < 1 { return sFilter }
   
   postFilters = []interface{}
@@ -156,39 +125,39 @@ func (sFilter *SearchFilter) SetAggregations(sOption *SearchOption) *SearchFilte
     }
 
     alterField := field
-    if sFilter.IsString(aggOption["field"]) && aggOption["field"] != "" {
+    if IsString(aggOption["field"]) && aggOption["field"] != "" {
       alterField = aggOption["field"]
     }
 
-    if sFilter.IsSliceExist(aggOption["ranges"]) {
+    if IsSliceExist(aggOption["ranges"]) {
       payloadOption := map[string]interface{}{
         "field": alterField,
         "ranges": aggOption["ranges"],
       }
-      mergo.Merge(&payloadOption, sharedAggOption)
+      MapMerge(&payloadOption, sharedAggOption)
       fieldPayload["range"] = payloadOption
       aggsPayload[field] = fieldPayload
 
-    } else if  sFilter.IsSliceExist(aggOption["date_ranges"]) {
+    } else if  IsSliceExist(aggOption["date_ranges"]) {
       payloadOption := map[string]interface{}{
         "field": alterField,
         "ranges": aggOption["date_ranges"],
       }
-      mergo.Merge(&payloadOption, sharedAggOption)
+      MapMerge(&payloadOption, sharedAggOption)
       fieldPayload["date_range"] = payloadOption
       aggsPayload[field] = fieldPayload
 
-    } else if sFilter.IsMapExist(aggOption["date_histogram"]) {
+    } else if IsMapExist(aggOption["date_histogram"]) {
       payloadOption := map[string]interface{}{
         "date_histogram": aggOption["date_histogram"],
       }
-      mergo.Merge(&payloadOption, sharedAggOption)
+      MapMerge(&payloadOption, sharedAggOption)
       aggsPayload[field] = payloadOption
 
     } else if metricField := sFilter.MetricField(aggOption); metricField != "" {
       fieldPayload["field"] = field
       metricOption := aggOption[metricField].(map[string]interface{})
-      if !sFilter.IsEmpty(metricOption) && metricOption["field"].(string) != "" {
+      if !IsEmpty(metricOption) && metricOption["field"].(string) != "" {
         fieldPayload["field"] = metricOption["field"]
       }
       aggsPayload[field] = map[string]interface{}{
@@ -199,21 +168,15 @@ func (sFilter *SearchFilter) SetAggregations(sOption *SearchOption) *SearchFilte
         "field": alterField,
         "size": size,
       }
-      mergo.Merge(&payloadOption, sharedAggOption)
+      MapMerge(&payloadOption, sharedAggOption)
       fieldPayload["terms"] = payloadOption
       aggsPayload[field] = fieldPayload
     }
 
     where := map[string]interface{}{}
 
-    if sOption.SmartAggs != "false" && sFilter.IsMapExist(sOption.Where) {
-      smartWhere := map[string]interface{}{}
-      for k, v := range sOption.Where {
-        if k.(string) != field {
-          smartWhere[k.(string)] = v
-        }
-      }
-      where = smartWhere
+    if sOption.SmartAggs != "false" && IsMapExist(sOption.Where) {
+      where = MapReject(sOption.Where, field)
     }
 
     aggFilter := &SearchFilter{ Filters: []interface{}{}, Where: where }
@@ -223,7 +186,7 @@ func (sFilter *SearchFilter) SetAggregations(sOption *SearchOption) *SearchFilte
     falseFilters = []interface{}
 
     for _, filter := range sFilter.Filters {
-      if funk.Contains(aggFilter.Filters, filter) {
+      if SliceContains(aggFilter.Filters, filter) {
         trueFilters = append(trueFilters, filter)
       } else {
         postFilters = append(postFilters, filter)
@@ -257,4 +220,169 @@ func (sFilter *SearchFilter) SetAggregations(sOption *SearchOption) *SearchFilte
     },
   }
 
+  return sFilter
+}
+
+func (sFilter *SearchFilter) BoostFilters(boostBy map[string]interface{}, modifier map[string]interface{}) []interface{} {
+  boosts := []interface{}
+  for k, v := range boostBy {
+    field := k.(string)
+    value := v.(map[string]interface{})
+    factor := 1
+    if IsInt(value["factor"]) || IsFloat(value["factor"]) {
+      factor := value["factor"]
+    }
+
+    fieldFactor := map[string]interface{}{
+      "field": field,
+      "factor": factor,
+      "modifier": modifier,
+    }
+
+    if IsInt(value["missing"]) || IsFloat(value["missing"]) {
+      fieldFactor["missing"] = value["missing"]
+      boosts = append(boosts, map[string]interface{}{ "field_value_factor": fieldFactor })
+    } else {
+      boosts = append(boosts, map[string]interface{}{ 
+        "field_value_factor": fieldFactor, 
+        "exists": map[string]interface{}{
+          "field": field,
+        },
+      })
+    }
+  }
+  return boosts
+}
+
+func (sFilter *SearchFilter) FilterBoostMultiply(sOption *SearchOption) *SearchFilter {
+  sFilter.CustomFilters = []interface{}{}
+  sFilter.MultiplyFilters = []interface{}{}
+
+  boostBy := map[string]interface{}{}
+  multiplyBy := map[string]interface{}{}
+
+  if IsSliceExist(sOption.BoostBy) {
+    for _, f := range sOption.BoostBy {
+      boostBy[f] = map[string]interface{}{"factor": 1}
+    }
+  } else if IsMapExist(sOption.BoostBy) {
+    partitioned := MapPartition(func(key string, value interface{}) bool {
+      vMap := value.(map[string]interface{})
+      boostMode := vMap["boost_mode"].(string)
+      return boostMode == "multiply"
+    }, sOption.BoostBy)
+    multiplyBy = partitioned[0]
+    boostBy = partitioned[1]
+  }
+
+  if sOption.Boost != "" {
+    boostBy[sOption.Boost] = map[string]interface{}{"factor": 1}
+  }
+
+  sFilter.CustomFilters = append(boostBy, sFilter.BoostFilters(boostBy, map[string]interface{}{"modifier": "ln2p"}))
+  sFilter.multiplyBy = append(multiplyBy, sFilter.BoostFilters(multiplyBy, map[string]interface{}{}))
+
+  return sFilter
+}
+
+func (sFilter *SearchFilter) CustomFilter(field string, value interface{}, factor float64) map[string]interface{} {
+  cFilter := &SearchFilter{
+    Filters: []interface{}{},
+    Where: map[string]interface{}{
+      "field": value,
+    }
+  }
+  cFilter.SetFilters()
+  return map[string]interface{}{
+    "filter": cFilter.Filters,
+    "weight": factor
+  }
+}
+
+func (sFilter *SearchFilter) SetBoostWhere(sOption *SearchOption) *SearchFilter {
+  boostWhere := map[string]interface{}{}
+  if IsSliceExist(sOption.BoostWhere) {
+    boostWhere = sOption.BoostWhere
+  }
+  for key, value := range boostWhere {
+    field := key.(string)
+    if IsSliceExist(value) && IsMap(reflect.ValueOf(value).Index(0).Interface()) {
+      for _, cValue := range value.([]interface{}) {
+        valueFactor := cValue.(map[string]interface{})
+        sFilter.CustomFilters = append(sFilter.CustomFilters, sFilter.CustomFilter(field, valueFactor["value"], valueFactor["factor"].(float64)))
+      }
+    } else if IsMap(value) {
+      cValue := value.(map[string]interface{})
+      sFilter.CustomFilters = append(sFilter.CustomFilters, sFilter.CustomFilter(field, cValue["value"], cValue["factor"].(float64)))
+    } else {
+      sFilter.CustomFilters = append(sFilter.CustomFilters, sFilter.CustomFilter(field, value, 1000.0))
+    }
+  }
+  return sFilter
+}
+
+func (sFilter *SearchFilter) SetBoostByDistance(sOption *SearchOption) *SearchFilter {
+  if !IsMapExist(sOption.BoostByDistance) {return sFilter}
+  boostByDistance := sOption.BoostByDistance
+  if !IsEmpty(boostByDistance["field"]) {
+    boostField := boostByDistance["field"]
+    boostByDistance = map[string]interface{}{
+      boostField: MapReject(boostByDistance, boostField),
+    }
+  }
+
+  for k, v := range boostByDistance {
+    field := k.(string)
+    attributes := v.(map[string]interface{})
+    MapMerge(&attributes, map[string]interface{}{"function": "gauss", "scale": "5mi"})
+
+    if IsEmpty(attributes["origin"]) {
+      log.Panic("boost_by_distance requires :origin")
+    }
+
+    functionParams := MapReject(attributes, "factor", "function")
+    functionParams["origin"] = sFilter.LocationValue(functionParams["origin"])
+    weightAttr := 1
+
+    if !IsEmpty(attributes["factor"]) {
+      weightAttr = attributes["factor"]
+    }
+
+    filterAttr := map[string]interface{}{
+      "weight": weightAttr,
+      attributes["function"]: map[string]interface{}{
+        field: functionParams,
+      },
+    }
+
+    sFilter.CustomFilters = append(sFilter.CustomFilters, filterAttr)
+  }
+  return sFilter
+}
+
+func (sFilter *SearchFilter) SetBoostByRecency(sOption *SearchFilter) *SearchFilter{
+  if !IsMapExist(sOption.BoostByRecency) {return sFilter}
+  for k, v := range sOption.BoostByRecency {
+    field := k.(string)
+    attributes := v.(map[string]interface{})
+    attributes = MapMerge(&attributes, map[string]interface{}{"function": "gauss", "origin": time.Now()})
+
+    fieldParams := MapReject(attributes, "factor", "function")
+    
+    weightAttr := 1
+
+    if !IsEmpty(attributes["factor"]) {
+      weightAttr = attributes["factor"]
+    }
+
+    filterAttr := map[string]interface{}{
+      "weight": weightAttr,
+      attributes["function"]: map[string]interface{}{
+        field: functionParams,
+      },
+    }
+
+    sFilter.CustomFilters = append(sFilter.CustomFilters, filterAttr)
+  }
+  return sFilter
 }

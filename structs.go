@@ -22,6 +22,11 @@ type SearchOption struct {
   ConversionsTerm string
   Aggs            interface{} //Slice or Map
   SmartAggs       string //"false" or "true"
+  BoostBy         interface{}
+  Boost           string
+  BoostWhere      map[string]interface{}
+  BoostByDistance map[string]interface{}
+  BoostByRecency  map[string]interface{}
 }
 
 
@@ -41,10 +46,12 @@ type SearchQuery struct {
 }
 
 type SearchFilter struct {
-  Filters     []interface{}
-  Where       map[string]interface{}
-  Field       string
-  Payloads    map[string]interface{}
+  Filters         []interface{}
+  Where           map[string]interface{}
+  Field           string
+  Payloads        map[string]interface{}
+  CustomFilters   []interface{}
+  MultiplyFilters []interface{}
 }
 
 type SearchResult struct {

@@ -4,8 +4,6 @@ import (
   "reflect"
   "strings"
   "log"
-  "github.com/thoas/go-funk"
-  "github.com/imdario/mergo"
 )
 
 func (s *Searchpick) SettingCharFilter(filter []string) map[string]interface{} {
@@ -327,13 +325,13 @@ func (s *Searchpick) SettingsMappings() map[string]interface{} {
       mappingValues = append(mappingValues, s.Filterable...)
     }
 
-    uniqMappingValues := funk.UniqString(mappingValues)
+    uniqMappingValues := SliceUniqString(mappingValues)
     
     var field string
     for _, field = range uniqMappingValues {
       fields := map[string]interface{}{}
 
-      if mappingOptions["is_filterable"].(bool) && !funk.ContainsString(mappingOptions["filterable"].([]string), field) {
+      if mappingOptions["is_filterable"].(bool) && !SliceContainsString(mappingOptions["filterable"].([]string), field) {
         fields[field] = map[string]interface{}{
           "type": defaultType,
           "index": indexFalseValue,
@@ -342,11 +340,11 @@ func (s *Searchpick) SettingsMappings() map[string]interface{} {
         fields[field] = analyzedFieldOptions
       }
 
-      if !mappingOptions["is_searchable"].(bool) || funk.ContainsString(mappingOptions["searchable"].([]string), field) {
+      if !mappingOptions["is_searchable"].(bool) || SliceContainsString(mappingOptions["searchable"].([]string), field) {
         if isWord {
           fields["analyzed"] = analyzedFieldOptions
 
-          if mappingOptions["is_highlight"].(bool) && funk.ContainsString(mappingOptions["highlight"].([]string), field) {
+          if mappingOptions["is_highlight"].(bool) && SliceContainsString(mappingOptions["highlight"].([]string), field) {
             termVector := fields["analyzed"].(map[string]interface{})
             termVector["term_vector"] = "with_positions_offsets"
           }
@@ -354,7 +352,7 @@ func (s *Searchpick) SettingsMappings() map[string]interface{} {
 
         var mm string
         for _, mm = range mappingMatches {
-          if s.Match == mm || funk.ContainsString(mappingOptions[mm].([]string), field){
+          if s.Match == mm || SliceContainsString(mappingOptions[mm].([]string), field){
             fields[mm] = map[string]interface{}{
               "type": defaultType,
               "index": indexTrueValue,
@@ -371,7 +369,7 @@ func (s *Searchpick) SettingsMappings() map[string]interface{} {
             exceptFields[fk] = fv
           }
         }
-        mergo.Merge(&fieldFields, map[string]interface{}{ "fields": exceptFields })
+        MapMerge(&fieldFields, map[string]interface{}{ "fields": exceptFields })
         mappings[field] = fieldFields 
       }
     }
@@ -445,7 +443,7 @@ func (s *Searchpick) SettingsMappings() map[string]interface{} {
     multiFields := map[string]interface{}{
       "fields": dynamicFieldsWithoutName,
     }
-    mergo.Merge(&multiFields, nameDynamicFields)
+    MapMerge(&multiFields, nameDynamicFields)
     
     dynamicTemplateItem := map[string]interface{}{
       "string_template": map[string]interface{}{
@@ -456,7 +454,7 @@ func (s *Searchpick) SettingsMappings() map[string]interface{} {
     }
 
     if !reflect.ValueOf(s.Mappings).IsZero() && s.MergeMappings {
-      mergo.Merge(&mappings, s.Mappings)
+      MapMerge(&mappings, s.Mappings)
     }
 
     formattedMappings := map[string]interface{}{

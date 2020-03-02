@@ -4,7 +4,6 @@ import (
   "log"
   "strconv"
   "reflect"
-  "github.com/thoas/go-funk"
 )
 
 type Misspellings struct {
@@ -73,7 +72,7 @@ func (sOption *SearchOption) SetMisspellings(fields []string) *Misspellings {
       matchMisspellings := []string{}
       for _, f := range fields {
         bf := s.BaseField(f)
-        if funk.ContainsString(misspellings.Fields, bf) {
+        if SliceContainsString(misspellings.Fields, bf) {
           matchMisspellings = append(matchMisspellings, mf)
         }
       }
