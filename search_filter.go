@@ -256,5 +256,41 @@ func (sFilter *SearchFilter) BuildQuery(boostField *BoostField, sQuery *SearchQu
 
   sQuery.Query = query
   return sFilter
-
 } 
+
+func (sFilter *SearchFilter) SetSuggest(suggests []string, sOption *SearchOption, payload map[string]interface{}) map[string]interface{} {
+  suggestFields := suggests
+
+  if IsSliceExist(sOption.Fields) {
+    sameFields = []string{}
+    
+
+    for i := range sOption.Fields {
+      field := sOption.Fields[i]
+      boost := reflect.ValueOf(strings.Split(field, "^"))
+      field = boost.Index(0).String()
+      if SliceContainsString(suggestFields, field) {
+        sameFields = append(sameFields, field)
+      }
+    }
+
+    suggestFields = sameFields
+  }
+
+  if IsSliceExist(suggestFields) {
+    suggestOpts := map[string]interface{}{"text": sOption.Term}
+     
+    for _, k := range suggestFields {
+      word := k.(string)
+      suggestOpts[word] = map[string]interface{}{
+        "phrase": map[string]interface{}{
+          "field": word+".suggest",
+        },
+      }
+    }
+    payload["suggest"] = suggestOpts
+
+  }
+
+  return payload
+}

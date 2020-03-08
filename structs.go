@@ -27,6 +27,9 @@ type SearchOption struct {
   BoostWhere      map[string]interface{}
   BoostByDistance map[string]interface{}
   BoostByRecency  map[string]interface{}
+  Explain         bool
+  IndicesBoost    map[string]interface{}
+  Suggest         bool
 }
 
 

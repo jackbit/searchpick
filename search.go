@@ -139,6 +139,32 @@ func (s *Searchpick) Search(sOption *SearchOption) SearchResult {
       SetBoostByRecency(sOption).
       BuildQuery(boostField, sQuery)
 
+    if sOption.Explain { payload["explain"] = sOption.Explain }
+
+    if IsMapExist(sOption.Order) {
+      
+      if !IsEmpty(sOption.Order["id"]) {
+        sOption.Order["_id"] = sOption.Order["id"]
+        delete(sOption.Order, "id")
+      }
+
+      payload["sort"] = sOption.Order
+    }
+
+    if IsMapExist(sOption.IndicesBoost) {
+      indicesBoosts = []interface{}{}
+      for k, v := range sOption.IndicesBoost {
+        indices := k.(string)
+        indicesBoosts = append(indicesBoosts, map[string]interface{}{ indices: v })
+      }
+
+      payload["indices_boost"] = indicesBoosts
+    }
+
+    if sOption.Suggest && IsSliceExist(s.Suggest) {
+      payload = sFilter.SetSuggest(s.Suggest, sOption, payload)
+    }
+
     
     // log.Println(sQuery.String())
     // log.Println(boostField.String())
