@@ -99,7 +99,7 @@ func (s *Searchpick) Search(sOption *SearchOption) SearchResult {
       sOption.ExploreFields(boostField)
 
       if isAll {
-        query :=  map[string]interface{}{"match_all": map[string]interface{}{}}
+        sQuery.Query = map[string]interface{}{"match_all": map[string]interface{}{}}
         boostField.Shoulds = []interface{}
       } else {
         queriesPayload = []map[string]interface{}{}
@@ -122,7 +122,7 @@ func (s *Searchpick) Search(sOption *SearchOption) SearchResult {
         boostField.Shoulds = append(boostField.Shoulds s.SetConversions(sOption))
       }
 
-      query = payload
+      sQuery.Query = payload
     }
 
     //Note: Searchpick, skip inheritance of searchkick
@@ -130,12 +130,14 @@ func (s *Searchpick) Search(sOption *SearchOption) SearchResult {
     // move to post_filters as aggs demand
 
     sFilter := &SearchFilter{ Filters: []interface{}{}, Where: sOption.Where }
+
     sFilter.SetFilters().
       SetAggregation(sOption). //including post-filters
       FilterBoostMultiply(sOption).
       SetBoostWhere(sOption).
       SetBoostByDistance(sOption).
       SetBoostByRecency(sOption).
+      BuildQuery(boostField, sQuery)
 
     
     // log.Println(sQuery.String())
